@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+.pytest_cache
+.mypy_cache
+.tox
+venv
+ENV
+env
+
+# Testing and coverage
+.coverage
+htmlcov
+.hypothesis
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Development
+.env
+.env.local
+*.log
+node_modules
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation
+docs
+*.md
+
+# Docker
+.dockerignore
+docker-compose.yml
+Dockerfile
+
+# GCP
+key.json
+service-account-key.json
+
+# Other
+.gitpod.yml
+.gitattributes
+.editorconfig

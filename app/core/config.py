@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     PUBSUB_ACK_DEADLINE: int = 600  # 10 minutes to process message
 
     # Vertex AI / Gemini settings
-    GCP_LOCATION: str = "us-central1"
-    GEMINI_MODEL_NAME: str = "gemini-1.5-flash"
+    GCP_LOCATION: str = "global"
+    GEMINI_MODEL_NAME: str = "gemini-3.1-pro-preview"
     GEMINI_MAX_RETRIES: int = 3
     GEMINI_RETRY_DELAY: int = 2
 

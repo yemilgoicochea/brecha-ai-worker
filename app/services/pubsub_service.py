@@ -77,7 +77,6 @@ class PubSubService:
         streaming_pull_future = self.subscriber_client.subscribe(
             self.subscription_path,
             callback=message_handler,
-            max_messages=settings.PUBSUB_MAX_MESSAGES,
             flow_control=pubsub_v1.types.FlowControl(
                 max_messages=settings.PUBSUB_MAX_MESSAGES,
                 max_bytes=100 * 1024 * 1024,  # 100 MB
@@ -87,12 +86,15 @@ class PubSubService:
         # Wrap to handle exceptions
         with self.subscriber_client:
             try:
-                # Wait for streaming pull future to finish
-                streaming_pull_future.result(timeout=timeout)
-            except ConcurrentTimeoutError:
-                logger.info("Listening timeout reached")
+                while True:
+                    try:
+                        streaming_pull_future.result(timeout=1)
+                        break
+                    except ConcurrentTimeoutError:
+                        pass  # sigue escuchando
+            except KeyboardInterrupt:
+                logger.info("Shutting down worker...")
                 streaming_pull_future.cancel()
-                streaming_pull_future.result()
             except Exception as e:
                 logger.error(f"Error in message listener: {str(e)}", exc_info=True)
                 streaming_pull_future.cancel()

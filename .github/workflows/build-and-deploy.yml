@@ -68,5 +68,5 @@ jobs:
             --max-instances=1
             --timeout=3600
             --concurrency=1
-            --set-env-vars=ENVIRONMENT=${{ contains(github.ref_name, 'main') && 'production' || 'development' }},LOG_LEVEL=${{ contains(github.ref_name, 'main') && 'INFO' || 'DEBUG' }},GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=us-central1,PUBSUB_SUBSCRIPTION_ID=brecha-worker-sub,PUBSUB_TOPIC_ID=brecha-classification-topic,GEMINI_MODEL_NAME=gemini-1.5-flash
+            --set-env-vars=ENVIRONMENT=${{ contains(github.ref_name, 'main') && 'production' || 'development' }},LOG_LEVEL=${{ contains(github.ref_name, 'main') && 'INFO' || 'DEBUG' }},GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=global,PUBSUB_SUBSCRIPTION_ID=brecha-worker-sub,PUBSUB_TOPIC_ID=brecha-classification-topic,GEMINI_MODEL_NAME=gemini-3.1-pro-preview
             --set-secrets=SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_KEY=SUPABASE_KEY:latest

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage build
 FROM python:3.11-slim AS builder
 

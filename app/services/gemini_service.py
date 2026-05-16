@@ -5,38 +5,45 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from google import genai
-from google.genai import types
-from pydantic import BaseModel
+import vertexai
+from vertexai.generative_models import GenerationConfig, GenerativeModel
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-
-class _Label(BaseModel):
-    id: int
-    label: str
-    confianza: float
-    justificacion: str
-
-
-class _GeminiResponse(BaseModel):
-    labels: List[_Label]
+_LABELS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "labels": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "label": {"type": "string"},
+                    "confianza": {"type": "number"},
+                    "justificacion": {"type": "string"},
+                },
+                "required": ["id", "label", "confianza", "justificacion"],
+            },
+        }
+    },
+    "required": ["labels"],
+}
 
 
 class GeminiService:
 
     def __init__(self, supabase_service):
         self._supabase = supabase_service
-        self._client = genai.Client(
-            vertexai=True,
+        vertexai.init(
             project=settings.GCP_PROJECT_ID,
             location=settings.GCP_LOCATION,
         )
         self._system_instruction: Optional[str] = None
         logger.info(
-            f"google-genai client initialized: project={settings.GCP_PROJECT_ID}, "
+            f"Vertex AI initialized: project={settings.GCP_PROJECT_ID}, "
             f"location={settings.GCP_LOCATION}, model={settings.GEMINI_MODEL_NAME}"
         )
 
@@ -128,10 +135,9 @@ class GeminiService:
         if not project_title.strip():
             raise ValueError("El título del proyecto no puede estar vacío")
 
-        config = types.GenerateContentConfig(
-            system_instruction=self._system_instruction,
+        generation_config = GenerationConfig(
             response_mime_type="application/json",
-            response_schema=_GeminiResponse,
+            response_schema=_LABELS_SCHEMA,
         )
 
         prompt = f"Título del proyecto: {project_title}"
@@ -143,10 +149,14 @@ class GeminiService:
                 logger.info(
                     f"Intento de clasificación {attempt}/{settings.GEMINI_MAX_RETRIES}"
                 )
-                response = await self._client.aio.models.generate_content(
-                    model=settings.GEMINI_MODEL_NAME,
-                    contents=prompt,
-                    config=config,
+                model = GenerativeModel(
+                    settings.GEMINI_MODEL_NAME,
+                    system_instruction=self._system_instruction,
+                )
+                response = await asyncio.to_thread(
+                    model.generate_content,
+                    prompt,
+                    generation_config=generation_config,
                 )
                 result = json.loads(response.text)
                 logger.info(f"Clasificación exitosa en el intento {attempt}")

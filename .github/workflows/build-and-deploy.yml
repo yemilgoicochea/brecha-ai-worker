@@ -40,11 +40,20 @@ jobs:
       - name: Configure Docker authentication
         run: gcloud auth configure-docker --quiet ${{ env.REGION }}-docker.pkg.dev
 
+      - name: Pull cache image
+        run: |
+          docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/brecha-ai-worker:latest || true
+
       - name: Build and Tag Docker Image
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/brecha-ai-worker:${{ github.sha }}"
           IMAGE_LATEST="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/brecha-ai-worker:latest"
-          docker build -t $IMAGE_TAG -t $IMAGE_LATEST .
+          DOCKER_BUILDKIT=1 docker build \
+            --cache-from $IMAGE_LATEST \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t $IMAGE_TAG \
+            -t $IMAGE_LATEST \
+            .
 
       - name: Push Docker Image to Artifact Registry
         run: |

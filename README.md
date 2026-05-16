@@ -108,6 +108,20 @@ brecha-ai-worker/
 └── README.md
 ```
 
+## Tests
+
+El worker actualmente no tiene tests automatizados. La carpeta `tests/` está preparada para pytest.
+
+Áreas pendientes de cubrir:
+- Lógica de `worker_service.py` (orquestación del flujo de procesamiento)
+- `gemini_service.py` (mockeando la llamada a Vertex AI)
+- `supabase_service.py` (actualización de estados y guardado de clasificaciones)
+
+```bash
+# Cuando existan tests:
+pytest tests/ -v
+```
+
 ## Troubleshooting
 
 **404 Publisher Model not found**

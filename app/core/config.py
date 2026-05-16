@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # GCP Pub/Sub settings
     GCP_PROJECT_ID: str
     PUBSUB_SUBSCRIPTION_ID: str = "brecha-worker-sub"
-    PUBSUB_TOPIC_ID: str = "brecha-classification-topic"
+    PUBSUB_CATALOG_REFRESH_SUBSCRIPTION_ID: str = "brecha-catalog-refresh-sub"
     PUBSUB_MAX_MESSAGES: int = 1  # Process one message at a time
     PUBSUB_ACK_DEADLINE: int = 600  # 10 minutes to process message
 

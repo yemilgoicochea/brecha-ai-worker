@@ -18,7 +18,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install dependencies
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
+    pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requirements.txt
 
 # Runtime stage
 FROM python:3.11-slim

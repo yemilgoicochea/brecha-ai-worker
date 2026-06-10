@@ -30,6 +30,7 @@ class ProjectQueryMessage(BaseModel):
     user_id: str = Field(..., description="UUID of the user")
     title: str = Field(..., description="Project title")
     description: Optional[str] = Field(None, description="Project description")
+    zone_type: Optional[str] = Field(None, description="Zona del distrito: 'urbano' o 'rural'")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
 
 

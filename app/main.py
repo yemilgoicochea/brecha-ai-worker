@@ -4,7 +4,6 @@ import asyncio
 import http.server
 import json
 import logging
-import os
 import threading
 from typing import Any, Dict, Tuple
 
@@ -15,6 +14,7 @@ from app.core.logging_config import setup_logging
 from app.services.gemini_service import GeminiService
 from app.services.supabase_service import SupabaseService
 from app.services.worker_service import WorkerService
+from app.services.beto_service import BetoService
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,9 @@ class AsyncWorker:
     def __init__(self):
         self._supabase = SupabaseService()
         self._gemini = GeminiService(self._supabase)
-        self._worker = WorkerService(self._supabase, self._gemini)
+        self._beto = BetoService()
+        self._beto.load()  # carga BETO una sola vez al arrancar
+        self._worker = WorkerService(self._supabase, self._gemini, self._beto)
         self._project_queue: asyncio.Queue[Tuple[Any, Dict[str, Any]]] = asyncio.Queue()
         self._catalog_queue: asyncio.Queue[Any] = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop
@@ -65,6 +67,7 @@ class AsyncWorker:
     def _project_callback(self, message) -> None:
         try:
             payload = json.loads(message.data.decode("utf-8"))
+            logger.debug("Mensaje Pub/Sub recibido: %s", json.dumps(payload, ensure_ascii=False))
             self._loop.call_soon_threadsafe(
                 self._project_queue.put_nowait, (message, payload)
             )
@@ -160,9 +163,8 @@ def main() -> None:
     setup_logging()
     logger.info("Iniciando Brecha AI Worker...")
 
-    port = int(os.environ.get("PORT", 8080))
-    threading.Thread(target=_run_health_server, args=(port,), daemon=True).start()
-    logger.info(f"Health server escuchando en puerto {port}")
+    threading.Thread(target=_run_health_server, args=(settings.PORT,), daemon=True).start()
+    logger.info(f"Health server escuchando en puerto {settings.PORT}")
 
     asyncio.run(_main_async())
 

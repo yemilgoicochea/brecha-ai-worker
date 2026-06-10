@@ -110,17 +110,45 @@ brecha-ai-worker/
 
 ## Tests
 
-El worker actualmente no tiene tests automatizados. La carpeta `tests/` está preparada para pytest.
+Los tests cubren las tres capas del worker sin necesidad de credenciales reales de GCP ni Supabase — todo está mockeado con `unittest.mock`.
 
-Áreas pendientes de cubrir:
-- Lógica de `worker_service.py` (orquestación del flujo de procesamiento)
-- `gemini_service.py` (mockeando la llamada a Vertex AI)
-- `supabase_service.py` (actualización de estados y guardado de clasificaciones)
+### Cobertura
+
+| Archivo | Qué se prueba |
+|---|---|
+| `test_supabase_service.py` | `update_query_status` (con/sin campos opcionales, excepción), `save_classifications` (éxito, lista vacía, fallo), `get_query` |
+| `test_gemini_service.py` | `classify` (éxito, error JSON, reintentos, título vacío, catálogo no cargado), `cargar_o_actualizar_catalogo` (carga inicial, fallo, mantiene catálogo previo) |
+| `test_worker_service.py` | Happy path completo, fallo Gemini, fallo al guardar en Supabase, filtro de labels `NO_CLASIFICADO`, payload inválido, múltiples clasificaciones en orden |
+
+### Ejecutar
 
 ```bash
-# Cuando existan tests:
+# 1. Activar entorno virtual (si no está activo)
+.\venv\Scripts\activate        # Windows
+source venv/bin/activate       # Linux/Mac
+
+# 2. Instalar dependencias de test (ya incluidas en requirements.txt)
+pip install pytest pytest-asyncio pytest-cov
+
+# 3. Correr todos los tests
 pytest tests/ -v
+
+# 4. Con reporte de cobertura en terminal
+pytest tests/ -v --cov=app --cov-report=term-missing
+
+# 5. Generar reporte HTML (se abre htmlcov/index.html)
+pytest tests/ --cov=app --cov-report=html
 ```
+
+### Resultado esperado
+
+```
+tests/test_supabase_service.py ..........   10 passed
+tests/test_gemini_service.py  ..............  14 passed
+tests/test_worker_service.py  ............   12 passed
+```
+
+> Los tests **no requieren** `.env`, credenciales GCP ni conexión a Supabase.
 
 ## Troubleshooting
 

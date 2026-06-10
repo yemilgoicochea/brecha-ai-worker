@@ -41,14 +41,15 @@ class GeminiService:
             project=settings.GCP_PROJECT_ID,
             location=settings.GCP_LOCATION,
         )
-        self._system_instruction: Optional[str] = None
+        # Dict[sector_code, List[indicator_dict]] — indexado al cargar catálogo
+        self._catalog_by_sector: Optional[Dict[str, List[Dict[str, Any]]]] = None
         logger.info(
             f"Vertex AI initialized: project={settings.GCP_PROJECT_ID}, "
             f"location={settings.GCP_LOCATION}, model={settings.GEMINI_MODEL_NAME}"
         )
 
     async def cargar_o_actualizar_catalogo(self) -> None:
-        """Carga brechas activas desde la DB y actualiza el system instruction en memoria."""
+        """Carga brechas activas desde la DB e indexa por sector_code en memoria."""
         logger.info("Cargando catálogo de brechas desde la base de datos...")
         try:
             response = await asyncio.to_thread(
@@ -57,7 +58,7 @@ class GeminiService:
                     .table("gap_indicators")
                     .select(
                         "id, indicator_code, name, indicator_type, "
-                        "service_name, typology, sectors(name)"
+                        "service_name, typology, sectors(name, code)"
                     )
                     .eq("is_active", True)
                     .order("sector_id")
@@ -68,23 +69,24 @@ class GeminiService:
             indicators: List[Dict[str, Any]] = response.data or []
             logger.info(f"Cargados {len(indicators)} indicadores de brecha activos")
 
-            catalogo = self._build_catalog_string(indicators)
-            self._system_instruction = self._build_system_instruction(catalogo)
-
-            # Resumen por sector para verificar que el catálogo cargó correctamente
-            sector_counts: Dict[str, int] = {}
+            catalog: Dict[str, List[Dict[str, Any]]] = {}
             for ind in indicators:
-                sector = (ind.get("sectors") or {}).get("name", "SIN SECTOR")
-                sector_counts[sector] = sector_counts.get(sector, 0) + 1
-            for sector, count in sector_counts.items():
-                logger.info(f"  Sector '{sector}': {count} indicadores")
+                sector = ind.get("sectors") or {}
+                code = sector.get("code", "UNKNOWN")
+                catalog.setdefault(code, []).append(ind)
 
-            logger.debug("--- CATÁLOGO COMPLETO ---\n%s", catalogo)
-            logger.info("System instruction actualizado en memoria con el catálogo fresco")
+            self._catalog_by_sector = catalog
+
+            for code, items in catalog.items():
+                logger.info(f"  Sector '{code}': {len(items)} indicadores")
+            logger.info(
+                f"Catálogo indexado: {len(catalog)} sectores, "
+                f"{len(indicators)} indicadores totales"
+            )
 
         except Exception as e:
             logger.error(f"Error al cargar catálogo: {e}", exc_info=True)
-            if self._system_instruction is None:
+            if self._catalog_by_sector is None:
                 raise RuntimeError(
                     "No se pudo inicializar el catálogo: fallo en la carga desde la DB"
                 ) from e
@@ -126,14 +128,28 @@ class GeminiService:
         )
 
     async def classify(
-        self, project_title: str, project_description: str = ""
+        self,
+        project_title: str,
+        project_description: str = "",
+        sector_code: str = "",
+        zone_type: str | None = None,
     ) -> Dict[str, Any]:
-        if self._system_instruction is None:
+        if self._catalog_by_sector is None:
             raise RuntimeError(
                 "Catálogo no inicializado. Ejecuta cargar_o_actualizar_catalogo() primero."
             )
         if not project_title.strip():
             raise ValueError("El título del proyecto no puede estar vacío")
+
+        brechas = self._catalog_by_sector.get(sector_code, [])
+        if not brechas:
+            raise ValueError(
+                f"Sector '{sector_code}' no encontrado en catálogo o sin brechas activas."
+            )
+
+        system_instruction = self._build_system_instruction(
+            self._build_catalog_string(brechas)
+        )
 
         generation_config = GenerationConfig(
             response_mime_type="application/json",
@@ -143,15 +159,18 @@ class GeminiService:
         prompt = f"Título del proyecto: {project_title}"
         if project_description:
             prompt += f"\nDescripción: {project_description}"
+        if zone_type:
+            prompt += f"\nZona del distrito: {zone_type.upper()}"
 
         for attempt in range(1, settings.GEMINI_MAX_RETRIES + 1):
             try:
                 logger.info(
-                    f"Intento de clasificación {attempt}/{settings.GEMINI_MAX_RETRIES}"
+                    f"Clasificando con sector='{sector_code}', "
+                    f"brechas={len(brechas)}, intento {attempt}/{settings.GEMINI_MAX_RETRIES}"
                 )
                 model = GenerativeModel(
                     settings.GEMINI_MODEL_NAME,
-                    system_instruction=self._system_instruction,
+                    system_instruction=system_instruction,
                 )
                 response = await asyncio.to_thread(
                     model.generate_content,

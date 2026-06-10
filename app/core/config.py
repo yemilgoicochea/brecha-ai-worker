@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Brecha AI Worker"
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
+    PORT: int = 8081
     WORKER_TIMEOUT: int = 300  # 5 minutes timeout per message
 
     # GCP Pub/Sub settings
@@ -32,6 +33,10 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     SUPABASE_TABLE: str = "project_queries"
     SUPABASE_CLASSIFICATIONS_TABLE: str = "project_classifications"
+
+    # BETO classifier
+    BETO_MODEL_DIR: str = "modelo_beto"
+    BETO_BASE_MODEL: str = "dccuchile/bert-base-spanish-wwm-cased"
 
     # Worker settings
     MAX_WORKERS: int = 1

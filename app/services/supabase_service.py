@@ -36,6 +36,7 @@ class SupabaseService:
         status: str,
         processing_time_ms: Optional[int] = None,
         model_used: Optional[str] = None,
+        classification_status: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
@@ -62,6 +63,9 @@ class SupabaseService:
 
             if model_used:
                 update_data["model_used"] = model_used
+
+            if classification_status:
+                update_data["classification_status"] = classification_status
 
             if metadata:
                 # Merge with existing metadata

@@ -40,6 +40,10 @@ jobs:
       - name: Configure Docker authentication
         run: gcloud auth configure-docker --quiet ${{ env.REGION }}-docker.pkg.dev
 
+      - name: Download BETO model weights from GCS
+        run: |
+          gcloud storage cp gs://brecha-ml-models/modelo_beto/model.safetensors ./modelo_beto/model.safetensors
+
       - name: Pull cache image
         run: |
           docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/brecha-ai-worker:latest || true
@@ -71,8 +75,8 @@ jobs:
           flags: |
             --service-account=${{ env.GCP_SA_EMAIL }}
             --no-allow-unauthenticated
-            --memory=512Mi
-            --cpu=1
+            --memory=4Gi
+            --cpu=2
             --min-instances=1
             --max-instances=1
             --timeout=3600

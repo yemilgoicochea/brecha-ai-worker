@@ -130,6 +130,9 @@ dmypy.json
 key.json
 service-account-key.json
 
+# BETO model weights (420MB — stored in GCS)
+modelo_beto/model.safetensors
+
 # Local testing
 .local/
 *.tmp

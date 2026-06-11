@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os
 from typing import Optional
 
+import safetensors.torch as sf_torch
 import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
 
 from app.core.config import settings
 
@@ -36,10 +38,17 @@ class BetoService:
             self._tokenizer = AutoTokenizer.from_pretrained(
                 settings.BETO_MODEL_DIR, local_files_only=True
             )
-            logger.info("BETO [2/4] Cargando pesos del modelo (420 MB)...")
-            self._model = AutoModelForSequenceClassification.from_pretrained(
-                settings.BETO_MODEL_DIR, local_files_only=True
-            )
+            logger.info("BETO [2/4] Creando arquitectura desde config...")
+            config = AutoConfig.from_pretrained(settings.BETO_MODEL_DIR, local_files_only=True)
+            self._model = AutoModelForSequenceClassification.from_config(config)
+
+            logger.info("BETO [2/4] Leyendo pesos desde disco (sin mmap)...")
+            model_path = os.path.join(settings.BETO_MODEL_DIR, "model.safetensors")
+            with open(model_path, "rb") as f:
+                model_data = f.read()
+            logger.info(f"BETO [2/4] {len(model_data) / 1024 / 1024:.0f}MB leídos. Cargando state dict...")
+            state_dict = sf_torch.load(model_data)
+            self._model.load_state_dict(state_dict)
             logger.info("BETO [3/4] Moviendo modelo a CPU y poniendo en modo eval...")
             self._model.to(self._device)
             self._model.eval()

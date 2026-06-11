@@ -81,5 +81,5 @@ jobs:
             --max-instances=1
             --timeout=3600
             --concurrency=1
-            --set-env-vars=ENVIRONMENT=${{ contains(github.ref_name, 'main') && 'production' || 'development' }},LOG_LEVEL=${{ contains(github.ref_name, 'main') && 'INFO' || 'DEBUG' }},GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=global,PUBSUB_SUBSCRIPTION_ID=brecha-worker-sub,PUBSUB_CATALOG_REFRESH_SUBSCRIPTION_ID=brecha-catalog-refresh-sub,GEMINI_MODEL_NAME=gemini-3.1-pro-preview,OMP_NUM_THREADS=1,MKL_NUM_THREADS=1,TOKENIZERS_PARALLELISM=false
+            --set-env-vars=ENVIRONMENT=${{ contains(github.ref_name, 'main') && 'production' || 'development' }},LOG_LEVEL=${{ contains(github.ref_name, 'main') && 'INFO' || 'DEBUG' }},GCP_PROJECT_ID=${{ env.PROJECT_ID }},GCP_LOCATION=global,PUBSUB_SUBSCRIPTION_ID=brecha-worker-sub,PUBSUB_CATALOG_REFRESH_SUBSCRIPTION_ID=brecha-catalog-refresh-sub,GEMINI_MODEL_NAME=gemini-3.1-pro-preview,OMP_NUM_THREADS=1,MKL_NUM_THREADS=1,TOKENIZERS_PARALLELISM=false,TRANSFORMERS_OFFLINE=1
             --set-secrets=SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_KEY=SUPABASE_KEY:latest

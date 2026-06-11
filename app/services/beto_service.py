@@ -33,10 +33,12 @@ class BetoService:
 
         try:
             logger.info("BETO [1/4] Cargando tokenizer...")
-            self._tokenizer = AutoTokenizer.from_pretrained(settings.BETO_MODEL_DIR)
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                settings.BETO_MODEL_DIR, local_files_only=True
+            )
             logger.info("BETO [2/4] Cargando pesos del modelo (420 MB)...")
             self._model = AutoModelForSequenceClassification.from_pretrained(
-                settings.BETO_MODEL_DIR
+                settings.BETO_MODEL_DIR, local_files_only=True
             )
             logger.info("BETO [3/4] Moviendo modelo a CPU y poniendo en modo eval...")
             self._model.to(self._device)

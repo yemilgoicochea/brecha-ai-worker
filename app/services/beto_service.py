@@ -24,6 +24,10 @@ class BetoService:
     def load(self) -> None:
         logger.info(f"Cargando modelo BETO desde '{settings.BETO_MODEL_DIR}'...")
         try:
+            # Evita que PyTorch intente spawner múltiples threads OMP en Cloud Run
+            torch.set_num_threads(1)
+            torch.set_num_interop_threads(1)
+
             self._tokenizer = AutoTokenizer.from_pretrained(settings.BETO_MODEL_DIR)
             self._model = AutoModelForSequenceClassification.from_pretrained(
                 settings.BETO_MODEL_DIR
@@ -38,6 +42,13 @@ class BetoService:
             self._id2label = {int(k): v for k, v in mapping["id2label"].items()}
 
             logger.info(f"BETO cargado. Sectores: {list(self._label2id.keys())}")
+
+            # Warmup: fuerza la inicialización lazy de torch antes de la primera request real
+            logger.info("Ejecutando warmup de inferencia BETO...")
+            dummy = self._tokenizer("test", max_length=128, truncation=True, padding="max_length", return_tensors="pt")
+            with torch.no_grad():
+                self._model(**dummy)
+            logger.info("Warmup BETO completado")
         except Exception as e:
             logger.error(f"Error cargando BETO: {e}", exc_info=True)
             raise
@@ -46,7 +57,9 @@ class BetoService:
         """Predice el sector de un proyecto. Retorna (sector_code, confianza)."""
         if self._model is None:
             raise RuntimeError("BetoService no inicializado. Llama load() primero.")
+        logger.info(f"BETO iniciando inferencia para: '{project_title[:60]}'")
 
+        logger.info("BETO tokenizando texto...")
         inputs = self._tokenizer(
             project_title,
             max_length=128,
@@ -56,6 +69,7 @@ class BetoService:
         )
         inputs = {k: v.to(self._device) for k, v in inputs.items()}
 
+        logger.info("BETO ejecutando forward pass (model inference)...")
         with torch.no_grad():
             logits = self._model(**inputs).logits
             probs = torch.softmax(logits, dim=1)

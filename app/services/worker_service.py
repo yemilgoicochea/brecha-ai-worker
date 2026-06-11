@@ -30,38 +30,47 @@ class WorkerService:
             query_message = ProjectQueryMessage(**payload)
             logger.info(f"Procesando consulta: {query_message.query_id}")
 
+            logger.info(f"[PASO 1/5] Marcando consulta {query_message.query_id} como 'processing'...")
             await asyncio.to_thread(
                 self.supabase.update_query_status,
                 query_message.query_id,
                 "processing",
                 model_used=settings.GEMINI_MODEL_NAME,
             )
+            logger.info(f"[PASO 1/5] OK — estado actualizado a 'processing'")
 
             # ── BETO predice sector ────────────────────────────────────────────
-            sector_code, beto_confidence = await asyncio.to_thread(
-                self.beto.predict_sector,
-                query_message.title,
+            logger.info(f"[PASO 2/5] Iniciando BETO inference para título: '{query_message.title[:80]}'")
+            sector_code, beto_confidence = await asyncio.wait_for(
+                asyncio.to_thread(self.beto.predict_sector, query_message.title),
+                timeout=60,
             )
+            logger.info(f"[PASO 2/5] OK — BETO: sector='{sector_code}', confianza={beto_confidence:.2%}")
 
             # ── Gemini clasifica brecha con catálogo filtrado por sector ───────
-            classification_result = await self.gemini.classify(
-                project_title=query_message.title,
-                project_description=query_message.description or "",
-                sector_code=sector_code,
-                zone_type=query_message.zone_type,
+            logger.info(f"[PASO 3/5] Iniciando Gemini classify para sector='{sector_code}', zone_type='{query_message.zone_type}'")
+            classification_result = await asyncio.wait_for(
+                self.gemini.classify(
+                    project_title=query_message.title,
+                    project_description=query_message.description or "",
+                    sector_code=sector_code,
+                    zone_type=query_message.zone_type,
+                ),
+                timeout=120,
             )
-
-            # resto igual que antes...
-            processing_time_ms = int((time.time() - start_time) * 1000)
             labels = classification_result.get("labels", [])
+            logger.info(f"[PASO 3/5] OK — Gemini retornó {len(labels)} etiqueta(s)")
+
+            processing_time_ms = int((time.time() - start_time) * 1000)
             classifications = self._prepare_classifications(query_message.query_id, labels)
 
             if classifications:
+                logger.info(f"[PASO 4/5] Guardando {len(classifications)} clasificación(es) en Supabase...")
                 saved = await asyncio.to_thread(
                     self.supabase.save_classifications, classifications
                 )
                 if not saved:
-                    logger.error(f"Fallo al guardar clasificaciones para {query_message.query_id}")
+                    logger.error(f"[PASO 4/5] FALLO — no se pudieron guardar clasificaciones para {query_message.query_id}")
                     await asyncio.to_thread(
                         self.supabase.update_query_status,
                         query_message.query_id, "error",
@@ -69,9 +78,13 @@ class WorkerService:
                         metadata={"error": "Failed to save classifications"},
                     )
                     return
+                logger.info(f"[PASO 4/5] OK — clasificaciones guardadas")
+            else:
+                logger.info(f"[PASO 4/5] Sin clasificaciones válidas (NO_CLASIFICADO)")
 
             classification_status = "classified" if classifications else "unclassified"
 
+            logger.info(f"[PASO 5/5] Marcando consulta como 'completed' (classification_status={classification_status})...")
             await asyncio.to_thread(
                 self.supabase.update_query_status,
                 query_message.query_id, "completed",
@@ -86,8 +99,8 @@ class WorkerService:
             )
 
             logger.info(
-                f"Consulta {query_message.query_id} completada en {processing_time_ms}ms "
-                f"sector={sector_code} ({len(classifications)} brechas)"
+                f"[PASO 5/5] OK — Consulta {query_message.query_id} completada en {processing_time_ms}ms | "
+                f"sector={sector_code} | brechas={len(classifications)} | status={classification_status}"
             )
 
         except Exception as e:

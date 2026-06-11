@@ -22,7 +22,7 @@ WORKDIR /app
 
 # Instalar torch + optimum solo para la conversión
 RUN pip install torch==2.3.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu && \
-    pip install "optimum[exporters]"
+    pip install "optimum[exporters]<2.0" onnx
 
 # Copiar modelo BETO (model.safetensors descargado de GCS en el paso de CI)
 COPY modelo_beto/ modelo_beto/

@@ -23,15 +23,22 @@ class BetoService:
 
     def load(self) -> None:
         logger.info(f"Cargando modelo BETO desde '{settings.BETO_MODEL_DIR}'...")
-        try:
-            # Evita que PyTorch intente spawner múltiples threads OMP en Cloud Run
-            torch.set_num_threads(1)
-            torch.set_num_interop_threads(1)
 
+        # Limitar threads OMP/MKL antes de cualquier operación torch
+        torch.set_num_threads(1)
+        try:
+            torch.set_num_interop_threads(1)
+        except RuntimeError:
+            pass  # ya inicializado en otro punto del proceso
+
+        try:
+            logger.info("BETO [1/4] Cargando tokenizer...")
             self._tokenizer = AutoTokenizer.from_pretrained(settings.BETO_MODEL_DIR)
+            logger.info("BETO [2/4] Cargando pesos del modelo (420 MB)...")
             self._model = AutoModelForSequenceClassification.from_pretrained(
                 settings.BETO_MODEL_DIR
             )
+            logger.info("BETO [3/4] Moviendo modelo a CPU y poniendo en modo eval...")
             self._model.to(self._device)
             self._model.eval()
 
@@ -40,15 +47,14 @@ class BetoService:
                 mapping = json.load(f)
             self._label2id = mapping["label2id"]
             self._id2label = {int(k): v for k, v in mapping["id2label"].items()}
-
             logger.info(f"BETO cargado. Sectores: {list(self._label2id.keys())}")
 
             # Warmup: fuerza la inicialización lazy de torch antes de la primera request real
-            logger.info("Ejecutando warmup de inferencia BETO...")
+            logger.info("BETO [4/4] Ejecutando warmup de inferencia...")
             dummy = self._tokenizer("test", max_length=128, truncation=True, padding="max_length", return_tensors="pt")
             with torch.no_grad():
                 self._model(**dummy)
-            logger.info("Warmup BETO completado")
+            logger.info("BETO listo — warmup completado")
         except Exception as e:
             logger.error(f"Error cargando BETO: {e}", exc_info=True)
             raise

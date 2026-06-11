@@ -67,7 +67,7 @@ class AsyncWorker:
     def _project_callback(self, message) -> None:
         try:
             payload = json.loads(message.data.decode("utf-8"))
-            logger.debug("Mensaje Pub/Sub recibido: %s", json.dumps(payload, ensure_ascii=False))
+            logger.info("Mensaje Pub/Sub recibido: %s", json.dumps(payload, ensure_ascii=False))
             self._loop.call_soon_threadsafe(
                 self._project_queue.put_nowait, (message, payload)
             )

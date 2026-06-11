@@ -75,6 +75,7 @@ jobs:
           flags: |
             --service-account=${{ env.GCP_SA_EMAIL }}
             --no-allow-unauthenticated
+            --execution-environment=gen2
             --memory=4Gi
             --cpu=2
             --min-instances=1

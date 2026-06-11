@@ -38,9 +38,11 @@ class BetoService:
             self._tokenizer = AutoTokenizer.from_pretrained(
                 settings.BETO_MODEL_DIR, local_files_only=True
             )
-            logger.info("BETO [2/4] Creando arquitectura desde config...")
+            logger.info("BETO [2/4] Cargando config.json...")
             config = AutoConfig.from_pretrained(settings.BETO_MODEL_DIR, local_files_only=True)
+            logger.info(f"BETO [2/4] Config OK (num_labels={config.num_labels}). Inicializando tensores del modelo...")
             self._model = AutoModelForSequenceClassification.from_config(config)
+            logger.info("BETO [2/4] Tensores del modelo creados.")
 
             logger.info("BETO [2/4] Leyendo pesos desde disco (sin mmap)...")
             model_path = os.path.join(settings.BETO_MODEL_DIR, "model.safetensors")

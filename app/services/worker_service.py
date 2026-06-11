@@ -43,7 +43,7 @@ class WorkerService:
             logger.info(f"[PASO 2/5] Iniciando BETO inference para título: '{query_message.title[:80]}'")
             sector_code, beto_confidence = await asyncio.wait_for(
                 asyncio.to_thread(self.beto.predict_sector, query_message.title),
-                timeout=60,
+                timeout=120,
             )
             logger.info(f"[PASO 2/5] OK — BETO: sector='{sector_code}', confianza={beto_confidence:.2%}")
 

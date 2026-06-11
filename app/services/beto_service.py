@@ -34,11 +34,20 @@ class BetoService:
             opts = ort.SessionOptions()
             opts.intra_op_num_threads = 1
             opts.inter_op_num_threads = 1
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+            # ORT_ENABLE_BASIC: aplica optimizaciones seguras → inferencia rápida
+            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+            model_path = os.path.join(model_dir, "model.onnx")
+            logger.info(f"BETO-ONNX [2/3] Cargando model.onnx ({os.path.getsize(model_path) // 1024 // 1024}MB)...")
             self._session = ort.InferenceSession(
-                os.path.join(model_dir, "model.onnx"),
+                model_path,
                 sess_options=opts,
                 providers=["CPUExecutionProvider"],
             )
+            logger.info("BETO-ONNX [2/3] Sesión creada. Ejecutando warmup...")
+            dummy = self._tokenizer("test", max_length=128, truncation=True, padding="max_length", return_tensors="np")
+            self._session.run(None, dict(dummy))
+            logger.info("BETO-ONNX [2/3] Warmup completado — kernels compilados")
             mapping_path = os.path.join(model_dir, "label_mapping.json")
             with open(mapping_path, "r") as f:
                 mapping = json.load(f)

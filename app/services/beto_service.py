@@ -1,13 +1,13 @@
-"""BETO sector classifier service."""
+"""BETO sector classifier — ONNX Runtime inference (sin PyTorch en producción)."""
 
 import json
 import logging
 import os
 from typing import Optional
 
-import safetensors.torch as sf_torch
-import torch
-from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
+import numpy as np
+import onnxruntime as ort
+from transformers import AutoTokenizer
 
 from app.core.config import settings
 
@@ -17,84 +17,57 @@ logger = logging.getLogger(__name__)
 class BetoService:
 
     def __init__(self):
-        self._model: Optional[AutoModelForSequenceClassification] = None
+        self._session: Optional[ort.InferenceSession] = None
         self._tokenizer = None
         self._label2id: dict = {}
         self._id2label: dict = {}
-        self._device = "cpu"  # Cloud Run no tiene GPU
 
     def load(self) -> None:
-        logger.info(f"Cargando modelo BETO desde '{settings.BETO_MODEL_DIR}'...")
-
-        # Limitar threads OMP/MKL antes de cualquier operación torch
-        torch.set_num_threads(1)
+        model_dir = settings.BETO_ONNX_MODEL_DIR
+        logger.info(f"Cargando BETO-ONNX desde '{model_dir}'...")
         try:
-            torch.set_num_interop_threads(1)
-        except RuntimeError:
-            pass  # ya inicializado en otro punto del proceso
-
-        try:
-            logger.info("BETO [1/4] Cargando tokenizer...")
+            logger.info("BETO-ONNX [1/3] Cargando tokenizer...")
             self._tokenizer = AutoTokenizer.from_pretrained(
-                settings.BETO_MODEL_DIR, local_files_only=True
+                model_dir, local_files_only=True
             )
-            logger.info("BETO [2/4] Cargando config.json...")
-            config = AutoConfig.from_pretrained(settings.BETO_MODEL_DIR, local_files_only=True)
-            logger.info(f"BETO [2/4] Config OK (num_labels={config.num_labels}). Inicializando tensores del modelo...")
-            self._model = AutoModelForSequenceClassification.from_config(config)
-            logger.info("BETO [2/4] Tensores del modelo creados.")
-
-            logger.info("BETO [2/4] Leyendo pesos desde disco (sin mmap)...")
-            model_path = os.path.join(settings.BETO_MODEL_DIR, "model.safetensors")
-            with open(model_path, "rb") as f:
-                model_data = f.read()
-            logger.info(f"BETO [2/4] {len(model_data) / 1024 / 1024:.0f}MB leídos. Cargando state dict...")
-            state_dict = sf_torch.load(model_data)
-            self._model.load_state_dict(state_dict)
-            logger.info("BETO [3/4] Moviendo modelo a CPU y poniendo en modo eval...")
-            self._model.to(self._device)
-            self._model.eval()
-
-            mapping_path = f"{settings.BETO_MODEL_DIR}/label_mapping.json"
+            logger.info("BETO-ONNX [2/3] Iniciando sesión ONNX Runtime...")
+            opts = ort.SessionOptions()
+            opts.intra_op_num_threads = 1
+            opts.inter_op_num_threads = 1
+            self._session = ort.InferenceSession(
+                os.path.join(model_dir, "model.onnx"),
+                sess_options=opts,
+                providers=["CPUExecutionProvider"],
+            )
+            mapping_path = os.path.join(model_dir, "label_mapping.json")
             with open(mapping_path, "r") as f:
                 mapping = json.load(f)
             self._label2id = mapping["label2id"]
             self._id2label = {int(k): v for k, v in mapping["id2label"].items()}
-            logger.info(f"BETO cargado. Sectores: {list(self._label2id.keys())}")
-
-            # Warmup: fuerza la inicialización lazy de torch antes de la primera request real
-            logger.info("BETO [4/4] Ejecutando warmup de inferencia...")
-            dummy = self._tokenizer("test", max_length=128, truncation=True, padding="max_length", return_tensors="pt")
-            with torch.no_grad():
-                self._model(**dummy)
-            logger.info("BETO listo — warmup completado")
+            logger.info(f"BETO-ONNX [3/3] Listo. Sectores: {list(self._label2id.keys())}")
         except Exception as e:
-            logger.error(f"Error cargando BETO: {e}", exc_info=True)
+            logger.error(f"Error cargando BETO-ONNX: {e}", exc_info=True)
             raise
 
     def predict_sector(self, project_title: str) -> tuple[str, float]:
-        """Predice el sector de un proyecto. Retorna (sector_code, confianza)."""
-        if self._model is None:
+        if self._session is None:
             raise RuntimeError("BetoService no inicializado. Llama load() primero.")
-        logger.info(f"BETO iniciando inferencia para: '{project_title[:60]}'")
+        logger.info(f"BETO-ONNX inferencia: '{project_title[:60]}'")
 
-        logger.info("BETO tokenizando texto...")
         inputs = self._tokenizer(
             project_title,
             max_length=128,
             truncation=True,
             padding="max_length",
-            return_tensors="pt",
+            return_tensors="np",
         )
-        inputs = {k: v.to(self._device) for k, v in inputs.items()}
 
-        logger.info("BETO ejecutando forward pass (model inference)...")
-        with torch.no_grad():
-            logits = self._model(**inputs).logits
-            probs = torch.softmax(logits, dim=1)
-            confidence = float(probs.max().item())
-            predicted_id = int(torch.argmax(logits, dim=1).item())
+        logits = self._session.run(None, dict(inputs))[0]  # shape (1, num_labels)
+        exp_logits = np.exp(logits - logits.max())
+        probs = exp_logits / exp_logits.sum(axis=-1, keepdims=True)
+        predicted_id = int(np.argmax(probs))
+        confidence = float(probs[0, predicted_id])
 
         sector_code = self._id2label[predicted_id]
-        logger.info(f"BETO → sector='{sector_code}' (confianza={confidence:.2%})")
+        logger.info(f"BETO-ONNX → sector='{sector_code}' (confianza={confidence:.2%})")
         return sector_code, confidence

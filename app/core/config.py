@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     # BETO classifier
     BETO_MODEL_DIR: str = "modelo_beto"
+    BETO_ONNX_MODEL_DIR: str = "modelo_beto_onnx"
     BETO_BASE_MODEL: str = "dccuchile/bert-base-spanish-wwm-cased"
 
     # Worker settings

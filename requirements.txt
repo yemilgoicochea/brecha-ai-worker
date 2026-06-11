@@ -8,9 +8,10 @@ pydantic-settings==2.6.1
 supabase==2.4.4
 httpx==0.27.0
 
-# BETO classifier
-torch==2.3.0
+# BETO classifier — ONNX Runtime (no PyTorch en producción)
+onnxruntime==1.18.0
 transformers==4.41.0
+numpy>=1.24.0
 
 # Development dependencies
 pytest==8.3.4

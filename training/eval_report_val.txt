@@ -1,0 +1,32 @@
+Evaluación sobre split de validación (15%): 2,151 proyectos
+
+                                     precision    recall  f1-score   support
+
+         AGRICULTURE_AND_IRRIGATION      0.962     0.972     0.967       286
+                            CULTURE      0.902     0.965     0.932        57
+                          EDUCATION      0.988     0.979     0.984       585
+                        ENVIRONMENT      0.837     0.837     0.837        43
+                             HEALTH      0.957     0.980     0.969       205
+HOUSING_CONSTRUCTION_AND_SANITATION      0.982     0.987     0.984       594
+                           INTERIOR      0.984     0.952     0.968       126
+                         PRODUCTION      0.923     0.960     0.941        50
+       TRANSPORT_AND_COMMUNICATIONS      0.973     0.938     0.955       194
+   WOMEN_AND_VULNERABLE_POPULATIONS      0.700     0.636     0.667        11
+
+                           accuracy                          0.970      2151
+                          macro avg      0.921     0.921     0.920      2151
+                       weighted avg      0.970     0.970     0.970      2151
+
+
+Matriz de confusión (filas=real, columnas=predicho):
+                                     AGRICULTURE_  CULTURE  EDUCATION  ENVIRONMENT  HEALTH  HOUSING_CONS  INTERIOR  PRODUCTION  TRANSPORT_AN  WOMEN_AND_VU
+AGRICULTURE_AND_IRRIGATION                    278        0          2            1       1             0         1           2             1             0
+CULTURE                                         1       55          0            0       0             0         0           0             0             1
+EDUCATION                                       1        2        573            2       0             4         0           1             2             0
+ENVIRONMENT                                     4        1          0           36       1             1         0           0             0             0
+HEALTH                                          0        0          2            1     201             0         0           1             0             0
+HOUSING_CONSTRUCTION_AND_SANITATION             2        1          3            0       0           586         1           0             0             1
+INTERIOR                                        0        0          0            1       5             0       120           0             0             0
+PRODUCTION                                      0        0          0            1       1             0         0          48             0             0
+TRANSPORT_AND_COMMUNICATIONS                    2        1          0            1       1             6         0           0           182             1
+WOMEN_AND_VULNERABLE_POPULATIONS                1        1          0            0       0             0         0           0             2             7

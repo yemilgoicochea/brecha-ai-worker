@@ -78,6 +78,7 @@ jobs:
             --execution-environment=gen2
             --memory=4Gi
             --cpu=2
+            --no-cpu-throttling
             --min-instances=1
             --max-instances=1
             --timeout=3600

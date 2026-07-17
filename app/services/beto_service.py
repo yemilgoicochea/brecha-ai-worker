@@ -63,6 +63,10 @@ class BetoService:
             raise RuntimeError("BetoService no inicializado. Llama load() primero.")
         logger.info(f"BETO-ONNX inferencia: '{project_title[:60]}'")
 
+        # El modelo fue entrenado con títulos en MAYÚSCULAS (BETO es case-sensitive):
+        # sin esta normalización, texto en minúsculas sesga hacia HOUSING/CONSTRUCTION.
+        project_title = project_title.upper()
+
         inputs = self._tokenizer(
             project_title,
             max_length=128,

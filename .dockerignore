@@ -43,6 +43,9 @@ node_modules
 docs
 *.md
 
+# Training scripts and dataset (solo para reproducibilidad, no runtime)
+training
+
 # Docker
 .dockerignore
 docker-compose.yml
